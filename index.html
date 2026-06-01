@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏆 Shensha Axiom - Gold Compounding Plan</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🏆 Shensha Axiom</h1>
+            <p>Gold Compounding Plan Tracker</p>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="nav-tabs">
+            <button class="tab-btn active" data-tab="dashboard">📊 Dashboard</button>
+            <button class="tab-btn" data-tab="tracker">🗓️ Tracker</button>
+            <button class="tab-btn" data-tab="charts">📈 Charts</button>
+            <button class="tab-btn" data-tab="tools">🔧 Tools</button>
+            <button class="tab-btn" data-tab="settings">⚙️ Settings</button>
+        </nav>
+
+        <!-- DASHBOARD TAB -->
+        <section id="dashboard" class="tab-content active">
+            <div class="dashboard">
+                <!-- Progress Bar -->
+                <div id="progressSection" class="progress-section hidden">
+                    <h3>📍 Progress to Goal</h3>
+                    <div class="progress-cards">
+                        <div class="progress-card">
+                            <span class="label">Days</span>
+                            <span id="progressDays" class="value">0/60</span>
+                        </div>
+                        <div class="progress-card">
+                            <span class="label">Remaining</span>
+                            <span id="progressRemaining" class="value">$0</span>
+                        </div>
+                        <div class="progress-card">
+                            <span class="label">Status</span>
+                            <span id="progressStatus" class="value">On Track</span>
+                        </div>
+                        <div class="progress-card">
+                            <span class="label">Est. Days Left</span>
+                            <span id="progressEstDays" class="value">0</span>
+                        </div>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div id="balanceProgress" class="progress-bar balance"></div>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div id="timeProgress" class="progress-bar time"></div>
+                    </div>
+                </div>
+
+                <!-- Stats Row -->
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <span class="label">Trading Days</span>
+                        <span id="tradingDays" class="value">0</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="label">Start Date</span>
+                        <span id="startDateDisplay" class="value">-</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="label">Daily Target</span>
+                        <span id="dailyTargetDisplay" class="value">2.0%</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="label">Estimated Total</span>
+                        <span id="estimatedTotal" class="value">$0</span>
+                    </div>
+                </div>
+
+                <!-- Accounts Section -->
+                <div class="accounts-section">
+                    <h3>💰 Accounts</h3>
+                    <div id="accountsList" class="accounts-list"></div>
+                    <button id="addAccountBtn" class="btn btn-primary">+ Add Copy Account</button>
+                </div>
+
+                <!-- Streak Section -->
+                <div class="streak-section">
+                    <h3>🔥 Streak & Performance</h3>
+                    <div class="streak-cards">
+                        <div class="streak-card">
+                            <span class="label">Current Streak</span>
+                            <span id="currentStreak" class="value">0</span>
+                        </div>
+                        <div class="streak-card">
+                            <span class="label">Best Streak</span>
+                            <span id="bestStreak" class="value">0</span>
+                        </div>
+                        <div class="streak-card">
+                            <span class="label">Performance vs Target</span>
+                            <span id="performanceVsTarget" class="value">0%</span>
+                        </div>
+                    </div>
+                    <div id="heatmap" class="heatmap"></div>
+                </div>
+
+                <!-- Weekly Summary -->
+                <div class="weekly-summary">
+                    <h3>📅 Weekly Summary</h3>
+                    <div id="weeklySummary" class="weekly-list"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TRACKER TAB -->
+        <section id="tracker" class="tab-content">
+            <div class="tracker">
+                <div class="tracker-controls">
+                    <button id="exportCsvBtn" class="btn btn-secondary">📥 Export CSV</button>
+                    <button id="resetPLBtn" class="btn btn-warning">🔄 Reset P/L</button>
+                </div>
+                <div id="trackerTableContainer" class="tracker-table-container">
+                    <table id="trackerTable" class="tracker-table">
+                        <thead>
+                            <tr>
+                                <th>Day</th>
+                                <th>Date</th>
+                                <th>Balance Start</th>
+                                <th>Daily Target</th>
+                                <th>Target ($)</th>
+                                <th>Actual P/L</th>
+                                <th>P/L %</th>
+                                <th>Balance End</th>
+                                <th>Variation</th>
+                                <th>Pause</th>
+                            </tr>
+                        </thead>
+                        <tbody id="trackerBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- CHARTS TAB -->
+        <section id="charts" class="tab-content">
+            <div class="charts">
+                <div class="chart-container">
+                    <h3>📈 Compound Growth: Actual vs Theoretical</h3>
+                    <canvas id="growthChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>📊 Daily P/L Performance</h3>
+                    <canvas id="plChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- TOOLS TAB -->
+        <section id="tools" class="tab-content">
+            <div class="tools">
+                <!-- What-If Simulator -->
+                <div class="tool-section">
+                    <h3>🔬 What-If Simulator</h3>
+                    <div class="simulator-controls">
+                        <label>
+                            Custom %:
+                            <input type="number" id="customPercent" min="0.1" max="20" step="0.1" value="2" class="input-small">
+                        </label>
+                        <button id="runSimulatorBtn" class="btn btn-primary">Run Simulation</button>
+                    </div>
+                    <canvas id="simulatorChart"></canvas>
+                    <div id="simulatorResults" class="results-grid"></div>
+                </div>
+
+                <!-- Withdrawal Calculator -->
+                <div class="tool-section">
+                    <h3>💸 Withdrawal Calculator</h3>
+                    <div class="withdrawal-controls">
+                        <label>
+                            Frequency:
+                            <select id="withdrawalFreq" class="input">
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                            </select>
+                        </label>
+                        <label>
+                            Amount ($):
+                            <input type="number" id="withdrawalAmount" min="0" step="10" class="input-small">
+                        </label>
+                        <button id="runWithdrawalBtn" class="btn btn-primary">Calculate</button>
+                    </div>
+                    <canvas id="withdrawalChart"></canvas>
+                    <div id="withdrawalResults" class="results-grid"></div>
+                </div>
+
+                <!-- Goal Calculator -->
+                <div class="tool-section">
+                    <h3>🎯 Goal Calculator</h3>
+                    <div class="goal-controls">
+                        <label>
+                            Target ($):
+                            <input type="number" id="goalTarget" min="100" step="100" class="input-small">
+                        </label>
+                        <button id="runGoalBtn" class="btn btn-primary">Calculate</button>
+                    </div>
+                    <canvas id="goalChart"></canvas>
+                    <div id="goalResults" class="results-grid"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SETTINGS TAB -->
+        <section id="settings" class="tab-content">
+            <div class="settings">
+                <form id="settingsForm" class="settings-form">
+                    <div class="settings-group">
+                        <label for="startDate">Start Date:</label>
+                        <input type="date" id="startDate" class="input">
+                    </div>
+
+                    <div class="settings-group">
+                        <label for="startBalance">Starting Balance ($):</label>
+                        <input type="number" id="startBalance" min="100" step="100" class="input">
+                    </div>
+
+                    <div class="settings-group">
+                        <label for="dailyTarget">Daily Target (%):</label>
+                        <input type="number" id="dailyTarget" min="0.1" max="20" step="0.1" class="input">
+                    </div>
+
+                    <div class="settings-group">
+                        <label for="finalTarget">Final Target ($):</label>
+                        <input type="number" id="finalTarget" min="0" step="100" class="input">
+                        <small>Leave 0 to disable dynamic targeting</small>
+                    </div>
+
+                    <div class="settings-group">
+                        <label for="dailyStopLoss">Daily Stop Loss (%):</label>
+                        <input type="number" id="dailyStopLoss" min="0" max="100" step="0.1" class="input">
+                    </div>
+
+                    <div class="settings-group">
+                        <label for="maxTrades">Max Trades/Day:</label>
+                        <input type="number" id="maxTrades" min="1" step="1" class="input">
+                    </div>
+
+                    <div class="settings-actions">
+                        <button type="button" id="saveSettingsBtn" class="btn btn-primary">💾 Save Settings</button>
+                        <button type="button" id="resetAllBtn" class="btn btn-danger">🗑️ Reset Everything</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
