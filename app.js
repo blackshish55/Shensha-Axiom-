@@ -38,9 +38,9 @@ class DataManager {
         };
     }
 
-    generateTrackerDays() {
+    generateTrackerDays(startDate = null) {
         const days = [];
-        let currentDate = new Date(new Date().toISOString().split('T')[0]);
+        let currentDate = new Date(startDate || new Date().toISOString().split('T')[0]);
         let dayCount = 0;
 
         while (dayCount < 60) {
@@ -89,7 +89,6 @@ class DataManager {
             this.data.tracker.forEach((day, index) => {
                 if (!day.isPaused) {
                     const pl = day.pl || 0;
-                    const plPercent = pl / balance;
                     balance = balance + pl;
                     account.totalPL += pl;
                 }
@@ -124,6 +123,13 @@ class DataManager {
 
     updateSettings(settings) {
         this.data.settings = { ...this.data.settings, ...settings };
+        
+        // Se la data di inizio cambia, rigenera il tracker
+        if (settings.startDate) {
+            this.data.tracker = this.generateTrackerDays(settings.startDate);
+        }
+        
+        this.updateBalances();
         this.saveData();
     }
 
@@ -145,14 +151,15 @@ class DataManager {
         let currentStreak = 0;
         let bestStreak = 0;
 
-        this.data.tracker.forEach(day => {
+        this.data.tracker.forEach((day, index) => {
             if (day.isPaused) return;
-            const balanceAtDay = this.getBalanceAtDay(this.data.tracker.indexOf(day));
+            const balanceAtDay = this.getBalanceAtDay(index);
+            if (balanceAtDay === 0) return;
             const plPercent = day.pl / balanceAtDay;
             if (plPercent > this.data.settings.dailyTarget / 100) {
                 currentStreak++;
                 bestStreak = Math.max(bestStreak, currentStreak);
-            } else {
+            } else if (day.pl < 0 || plPercent <= 0) {
                 currentStreak = 0;
             }
         });
@@ -242,14 +249,20 @@ class AppManager {
             estimatedTotal *= (1 + dailyTarget / 100);
         }
 
-        document.getElementById('tradingDays').textContent = tradingDays;
-        document.getElementById('startDateDisplay').textContent = new Date(startDate).toLocaleDateString();
-        document.getElementById('dailyTargetDisplay').textContent = dailyTarget.toFixed(1) + '%';
-        document.getElementById('estimatedTotal').textContent = '$' + estimatedTotal.toFixed(2);
+        const el1 = document.getElementById('tradingDays');
+        const el2 = document.getElementById('startDateDisplay');
+        const el3 = document.getElementById('dailyTargetDisplay');
+        const el4 = document.getElementById('estimatedTotal');
+        
+        if (el1) el1.textContent = tradingDays;
+        if (el2) el2.textContent = new Date(startDate).toLocaleDateString();
+        if (el3) el3.textContent = dailyTarget.toFixed(1) + '%';
+        if (el4) el4.textContent = '$' + estimatedTotal.toFixed(2);
     }
 
     renderAccounts() {
         const container = document.getElementById('accountsList');
+        if (!container) return;
         container.innerHTML = '';
 
         this.dm.data.accounts.forEach(account => {
@@ -259,7 +272,7 @@ class AppManager {
             const removeBtn = account.isMaster ? '' : `<button class="account-remove" onclick="app.removeAccount('${account.id}')">×</button>`;
             
             const initialBalance = account.initialBalance || this.dm.data.settings.startBalance;
-            const gainPercent = ((account.balance - initialBalance) / initialBalance) * 100;
+            const gainPercent = initialBalance > 0 ? ((account.balance - initialBalance) / initialBalance) * 100 : 0;
 
             card.innerHTML = `
                 <div class="account-card-header">
@@ -279,12 +292,13 @@ class AppManager {
 
     renderProgress() {
         const finalTarget = this.dm.data.settings.finalTarget;
-        if (finalTarget === 0) {
-            document.getElementById('progressSection').classList.add('hidden');
+        const progressSection = document.getElementById('progressSection');
+        if (!progressSection || finalTarget === 0) {
+            if (progressSection) progressSection.classList.add('hidden');
             return;
         }
 
-        document.getElementById('progressSection').classList.remove('hidden');
+        progressSection.classList.remove('hidden');
 
         const masterAccount = this.dm.data.accounts[0];
         const balance = masterAccount.balance;
@@ -292,19 +306,26 @@ class AppManager {
         const totalDays = 60;
         const tradedDays = this.dm.data.tracker.filter(d => !d.isPaused && d.pl !== 0).length;
 
-        const balancePercent = (balance / finalTarget) * 100;
+        const balancePercent = finalTarget > 0 ? (balance / finalTarget) * 100 : 0;
         const timePercent = (tradedDays / totalDays) * 100;
 
         const onTrack = balance >= (finalTarget * (tradedDays / totalDays));
         const estDaysLeft = this.estimateDaysToTarget(finalTarget);
 
-        document.getElementById('progressDays').textContent = `${tradedDays}/${totalDays}`;
-        document.getElementById('progressRemaining').textContent = '$' + remaining.toFixed(2);
-        document.getElementById('progressStatus').textContent = onTrack ? '✓ On Track' : '⚠ Behind';
-        document.getElementById('progressEstDays').textContent = estDaysLeft;
+        const el1 = document.getElementById('progressDays');
+        const el2 = document.getElementById('progressRemaining');
+        const el3 = document.getElementById('progressStatus');
+        const el4 = document.getElementById('progressEstDays');
+        
+        if (el1) el1.textContent = `${tradedDays}/${totalDays}`;
+        if (el2) el2.textContent = '$' + remaining.toFixed(2);
+        if (el3) el3.textContent = onTrack ? '✓ On Track' : '⚠ Behind';
+        if (el4) el4.textContent = estDaysLeft;
 
-        document.getElementById('balanceProgress').style.width = Math.min(100, balancePercent) + '%';
-        document.getElementById('timeProgress').style.width = timePercent + '%';
+        const balProg = document.getElementById('balanceProgress');
+        const timeProg = document.getElementById('timeProgress');
+        if (balProg) balProg.style.width = Math.min(100, balancePercent) + '%';
+        if (timeProg) timeProg.style.width = timePercent + '%';
     }
 
     estimateDaysToTarget(target) {
@@ -332,7 +353,9 @@ class AppManager {
 
         tradedDays.forEach(day => {
             const newBalance = balance + day.pl;
-            totalReturn *= (newBalance / balance);
+            if (balance > 0) {
+                totalReturn *= (newBalance / balance);
+            }
             balance = newBalance;
         });
 
@@ -341,19 +364,23 @@ class AppManager {
 
     renderStreak() {
         const { currentStreak, bestStreak } = this.dm.calculateStreaks();
-        document.getElementById('currentStreak').textContent = currentStreak;
-        document.getElementById('bestStreak').textContent = bestStreak;
+        const el1 = document.getElementById('currentStreak');
+        const el2 = document.getElementById('bestStreak');
+        if (el1) el1.textContent = currentStreak;
+        if (el2) el2.textContent = bestStreak;
 
         const totalPL = this.dm.data.accounts[0].totalPL;
         const targetPL = this.dm.data.tracker.filter(d => !d.isPaused).length * (this.dm.data.settings.startBalance * this.dm.data.settings.dailyTarget / 100);
         const performance = targetPL > 0 ? (totalPL / targetPL * 100) : 0;
-        document.getElementById('performanceVsTarget').textContent = performance.toFixed(1) + '%';
+        const el3 = document.getElementById('performanceVsTarget');
+        if (el3) el3.textContent = performance.toFixed(1) + '%';
 
         this.renderHeatmap();
     }
 
     renderHeatmap() {
         const heatmap = document.getElementById('heatmap');
+        if (!heatmap) return;
         heatmap.innerHTML = '';
 
         this.dm.data.tracker.forEach((day, index) => {
@@ -383,6 +410,7 @@ class AppManager {
 
     renderWeeklySummary() {
         const container = document.getElementById('weeklySummary');
+        if (!container) return;
         container.innerHTML = '';
 
         let weekCount = 0;
@@ -401,13 +429,14 @@ class AppManager {
                     const isPositive = weekPL >= 0;
                     weekCard.className = 'weekly-card ' + (isPositive ? 'positive' : 'negative');
 
-                    const avgPercent = weekDays > 0 ? (weekPL / (weekBalance - weekPL) * 100) : 0;
+                    const startBalance = weekBalance - weekPL;
+                    const avgPercent = startBalance > 0 && weekDays > 0 ? (weekPL / startBalance * 100) : 0;
 
                     weekCard.innerHTML = `
                         <div class="weekly-card-title">Week ${weekCount + 1}</div>
                         <div class="weekly-card-row">
                             <span class="weekly-card-label">Start Balance:</span>
-                            <span class="weekly-card-value">$${(weekBalance - weekPL).toFixed(2)}</span>
+                            <span class="weekly-card-value">$${startBalance.toFixed(2)}</span>
                         </div>
                         <div class="weekly-card-row">
                             <span class="weekly-card-label">End Balance:</span>
@@ -426,6 +455,7 @@ class AppManager {
 
                     weekCount++;
                     weekPL = 0;
+                    weekDays = 0;
                 }
             }
         });
@@ -433,14 +463,15 @@ class AppManager {
 
     renderTracker() {
         const tbody = document.getElementById('trackerBody');
+        if (!tbody) return;
         tbody.innerHTML = '';
 
         this.dm.data.tracker.forEach((day, index) => {
             const row = document.createElement('tr');
             const balanceStart = this.dm.getBalanceAtDay(index);
-            const target = balanceStart * (this.dm.data.settings.dailyTarget / 100);
+            const target = balanceStart > 0 ? balanceStart * (this.dm.data.settings.dailyTarget / 100) : 0;
             const balanceEnd = balanceStart + day.pl;
-            const plPercent = day.pl > 0 ? (day.pl / balanceStart * 100) : (day.pl === 0 ? 0 : (day.pl / balanceStart * 100));
+            const plPercent = balanceStart > 0 ? (day.pl / balanceStart * 100) : 0;
             const variation = day.isPaused ? 'Paused' : (day.pl > target ? '↑ Above' : day.pl < 0 ? '↓ Below' : '→ At');
 
             const plClass = day.pl > 0 ? 'positive' : day.pl < 0 ? 'negative' : '';
@@ -546,7 +577,7 @@ class AppManager {
         const plData = this.dm.data.tracker.map(d => d.pl);
         const targetData = this.dm.data.tracker.map((d, i) => {
             const balance = this.dm.getBalanceAtDay(i);
-            return balance * (this.dm.data.settings.dailyTarget / 100);
+            return balance > 0 ? balance * (this.dm.data.settings.dailyTarget / 100) : 0;
         });
 
         if (this.plChart) this.plChart.destroy();
@@ -581,12 +612,19 @@ class AppManager {
     }
 
     renderSettings() {
-        document.getElementById('startDate').value = this.dm.data.settings.startDate;
-        document.getElementById('startBalance').value = this.dm.data.settings.startBalance;
-        document.getElementById('dailyTarget').value = this.dm.data.settings.dailyTarget;
-        document.getElementById('finalTarget').value = this.dm.data.settings.finalTarget;
-        document.getElementById('dailyStopLoss').value = this.dm.data.settings.dailyStopLoss;
-        document.getElementById('maxTrades').value = this.dm.data.settings.maxTrades;
+        const startDate = document.getElementById('startDate');
+        const startBalance = document.getElementById('startBalance');
+        const dailyTarget = document.getElementById('dailyTarget');
+        const finalTarget = document.getElementById('finalTarget');
+        const dailyStopLoss = document.getElementById('dailyStopLoss');
+        const maxTrades = document.getElementById('maxTrades');
+        
+        if (startDate) startDate.value = this.dm.data.settings.startDate;
+        if (startBalance) startBalance.value = this.dm.data.settings.startBalance;
+        if (dailyTarget) dailyTarget.value = this.dm.data.settings.dailyTarget;
+        if (finalTarget) finalTarget.value = this.dm.data.settings.finalTarget;
+        if (dailyStopLoss) dailyStopLoss.value = this.dm.data.settings.dailyStopLoss;
+        if (maxTrades) maxTrades.value = this.dm.data.settings.maxTrades;
     }
 
     updateTrackerDay(dayIndex, value) {
@@ -645,9 +683,9 @@ class AppManager {
 
         this.dm.data.tracker.forEach((day, index) => {
             const balanceStart = this.dm.getBalanceAtDay(index);
-            const target = balanceStart * (this.dm.data.settings.dailyTarget / 100);
+            const target = balanceStart > 0 ? balanceStart * (this.dm.data.settings.dailyTarget / 100) : 0;
             const balanceEnd = balanceStart + day.pl;
-            const plPercent = day.pl > 0 ? (day.pl / balanceStart * 100) : (day.pl === 0 ? 0 : (day.pl / balanceStart * 100));
+            const plPercent = balanceStart > 0 ? (day.pl / balanceStart * 100) : 0;
 
             csv += `${day.day},"${day.dayName}",${balanceStart},${target},${day.pl},${plPercent},${balanceEnd},"${day.isPaused ? 'Paused' : 'Active'}",${day.isPaused ? 'Yes' : 'No'}\n`;
         });
@@ -726,6 +764,7 @@ class AppManager {
 
     renderSimulatorResults(results) {
         const container = document.getElementById('simulatorResults');
+        if (!container) return;
         container.innerHTML = '';
 
         results.forEach(r => {
@@ -813,6 +852,7 @@ class AppManager {
 
     renderWithdrawalResults(data, amount, depleteDay) {
         const container = document.getElementById('withdrawalResults');
+        if (!container) return;
         container.innerHTML = '';
 
         const withBalance = data.withWithdrawal[data.withWithdrawal.length - 1];
@@ -920,6 +960,7 @@ class AppManager {
 
     renderGoalResults(target, daysNeeded, milestones) {
         const container = document.getElementById('goalResults');
+        if (!container) return;
         container.innerHTML = '';
 
         const mainCard = document.createElement('div');
